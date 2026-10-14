@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
-
 import CustomDialog from "@/components/common/CustomDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
 import { useGetAvailableMembersQuery } from "@/store/api/projects/query";
 import {
   useAddProjectMembersMutation,
@@ -47,7 +45,6 @@ export default function ProjectMembers({
   } = useGetAvailableMembersQuery(undefined, {
     skip: !canManage || !open,
   });
-
   const [addProjectMembers, { isLoading: isAdding }] =
     useAddProjectMembersMutation();
 

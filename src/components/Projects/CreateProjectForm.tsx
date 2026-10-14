@@ -1,31 +1,18 @@
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
+import { Formik, Form } from "formik";
 import { toast } from "sonner";
-
 import {
   useCreateProjectMutation,
   useAddProjectMembersMutation,
 } from "@/store/api/projects/mutation";
 import { useGetAvailableMembersQuery } from "@/store/api/projects/query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { projectFormValidationSchema } from "./schemaValidation";
+import ProjectForm from "./ProjectForm";
 
 interface CreateProjectFormProps {
   onSuccess: () => void;
 }
-
-const validationSchema = Yup.object({
-  name: Yup.string()
-    .trim()
-    .min(2, "Name must contain at least 2 characters")
-    .required("Project name is required"),
-  description: Yup.string().max(
-    500,
-    "Description cannot exceed 500 characters",
-  ),
-});
 
 export default function CreateProjectForm({
   onSuccess,
@@ -47,7 +34,7 @@ export default function CreateProjectForm({
         description: "",
         memberIds: [] as string[],
       }}
-      validationSchema={validationSchema}
+      validationSchema={projectFormValidationSchema}
       onSubmit={async (values, { resetForm }) => {
         try {
           const response = await createProject({
@@ -76,35 +63,7 @@ export default function CreateProjectForm({
     >
       {({ isSubmitting, values, setFieldValue }) => (
         <Form className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Project name</Label>
-            <Field
-              as={Input}
-              id="name"
-              name="name"
-              placeholder="Enter project name"
-            />
-            <ErrorMessage
-              name="name"
-              component="p"
-              className="text-sm text-red-500"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Field
-              as={Textarea}
-              id="description"
-              name="description"
-              placeholder="Describe your project"
-            />
-            <ErrorMessage
-              name="description"
-              component="p"
-              className="text-sm text-red-500"
-            />
-          </div>
+          <ProjectForm />
 
           <div className="space-y-2">
             <Label>Team members (optional)</Label>

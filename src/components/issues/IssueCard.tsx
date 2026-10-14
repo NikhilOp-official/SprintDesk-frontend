@@ -1,6 +1,7 @@
 import type { Issue } from "@/store/api/issues/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { statusOptions } from "@/constants/options";
 
 interface IssueCardProps {
   issue: Issue;
@@ -63,10 +64,11 @@ const IssueCard = ({
             onClick={(event) => event.stopPropagation()}
             className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
           >
-            <option value="To Do">To Do</option>
-            <option value="In Progress">In Progress</option>
-            <option value="In Review">In Review</option>
-            <option value="Done">Done</option>
+            {statusOptions?.map((option) => (
+              <option key={option?.value} value={option?.value}>
+                {option?.label}
+              </option>
+            ))}
           </select>
         )}
       </CardContent>

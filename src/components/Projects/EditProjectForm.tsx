@@ -1,14 +1,15 @@
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
+import { Formik, Form } from "formik";
 import { toast } from "sonner";
-
 import { useUpdateProjectMutation } from "@/store/api/projects/mutation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import SelectField from "../common/SelectField";
+import {
+  editProjectValidationSchema,
+  type EditProjectFormValues,
+  type ProjectStatus,
+} from "./schemaValidation";
+import ProjectForm from "./ProjectForm";
 
-export type ProjectStatus = "active" | "archived";
 interface EditProjectFormProps {
   projectId: string;
   name: string;
@@ -16,20 +17,6 @@ interface EditProjectFormProps {
   status: ProjectStatus;
   onSuccess: () => void;
 }
-
-const validationSchema = Yup.object({
-  name: Yup.string()
-    .trim()
-    .min(2, "Name must contain at least 2 characters")
-    .required("Project name is required"),
-  status: Yup.string()
-    .oneOf(["active", "archived"])
-    .required("Status is required"),
-  description: Yup.string().max(
-    500,
-    "Description cannot exceed 500 characters",
-  ),
-});
 
 export default function EditProjectForm({
   projectId,
@@ -41,9 +28,9 @@ export default function EditProjectForm({
   const [updateProject, { isLoading }] = useUpdateProjectMutation();
 
   return (
-    <Formik
+    <Formik<EditProjectFormValues>
       initialValues={{ name, description: description || "", status }}
-      validationSchema={validationSchema}
+      validationSchema={editProjectValidationSchema}
       enableReinitialize
       onSubmit={async (values) => {
         try {
@@ -63,63 +50,21 @@ export default function EditProjectForm({
     >
       {({
         isSubmitting,
-        values,
-        setFieldValue,
-        touched,
-        errors,
+
         handleBlur,
       }) => (
         <Form className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-project-name">Project name</Label>
-            <Field
-              as={Input}
-              id="edit-project-name"
-              name="name"
-              placeholder="Enter project name"
-            />
-            <ErrorMessage
-              name="name"
-              component="p"
-              className="text-sm text-red-500"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="edit-project-description">Description</Label>
-            <Field
-              as={Textarea}
-              id="edit-project-description"
-              name="description"
-              placeholder="Describe your project"
-            />
-            <ErrorMessage
-              name="description"
-              component="p"
-              className="text-sm text-red-500"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="status" className="text-sm font-medium">
-              Project Status
-            </label>
-
-            <select
-              id="status"
-              name="status"
-              value={values.status}
-              onChange={(event) => setFieldValue("status", event.target.value)}
-              onBlur={handleBlur}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            >
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-            </select>
-
-            {touched.status && errors.status && (
-              <p className="text-sm text-destructive">{errors.status}</p>
-            )}
-          </div>
+          <ProjectForm />
+          <SelectField
+            label="Project Status"
+            name="status"
+            id="status"
+            onBlur={handleBlur}
+            options={[
+              { label: "Active", value: "active" },
+              { label: "Archived", value: "archived" },
+            ]}
+          />
 
           <Button
             type="submit"

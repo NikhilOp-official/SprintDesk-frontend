@@ -1,20 +1,18 @@
-import { useEffect, useState } from "react";
+import { Form, Formik } from "formik";
 import { toast } from "sonner";
-
 import CustomDialog from "@/components/common/CustomDialog";
 import { Button } from "@/components/ui/button";
-import {
-  useGetIssueByIdQuery,
-  useGetIssueActivityQuery,
-} from "@/store/api/issues/query";
+import { useGetIssueByIdQuery } from "@/store/api/issues/query";
 import {
   useUpdateIssueMutation,
   useDeleteIssueMutation,
 } from "@/store/api/issues/mutation";
 import { useGetProjectByIdQuery } from "@/store/api/projects/query";
 import { useCurrentUser, useIsAdmin } from "@/store/selectors";
-
 import type { IssuePriority, IssueStatus } from "@/store/api/issues/types";
+import ActivityHistory from "./ActivityHistory";
+import IssueForm from "./IssueForm";
+import { issueFormValidationSchema } from "./schemaValidation";
 
 interface IssueDetailsDialogProps {
   issueId: string | null;
@@ -23,11 +21,14 @@ interface IssueDetailsDialogProps {
   projectStatus: "active" | "archived";
 }
 
-const statuses: IssueStatus[] = ["To Do", "In Progress", "In Review", "Done"];
-const priorities: IssuePriority[] = ["Low", "Medium", "High"];
-
-const inputClass =
-  "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+interface IssueFormValues {
+  title: string;
+  description: string;
+  status: IssueStatus;
+  priority: IssuePriority;
+  assigneeId: string;
+  dueDate: string;
+}
 
 export default function IssueDetailsDialog({
   issueId,
@@ -60,48 +61,23 @@ export default function IssueDetailsDialog({
 
       toast.success("Issue deleted successfully");
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       toast.error("Unable to delete issue");
     }
   };
 
-  const { data: activityData, isLoading: isLoadingActivity } =
-    useGetIssueActivityQuery(issueId ?? "", {
-      skip: !issueId || !open,
+  const projectId = !issue
+    ? undefined
+    : typeof issue.projectId === "string"
+      ? issue.projectId
+      : issue.projectId._id;
+
+  const { data: projectData, isLoading: isLoadingProject } =
+    useGetProjectByIdQuery(projectId ?? "", {
+      skip: !projectId || !open,
     });
 
-  const projectId =
-    issue && typeof issue.projectId === "object"
-      ? issue.projectId._id
-      : issue?.projectId;
-
-  const { data: projectData } = useGetProjectByIdQuery(projectId ?? "", {
-    skip: !projectId || !open,
-  });
-
   const [updateIssue, { isLoading: isSaving }] = useUpdateIssueMutation();
-
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<IssueStatus>("To Do");
-  const [priority, setPriority] = useState<IssuePriority>("Medium");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDate, setDueDate] = useState("");
-
-  useEffect(() => {
-    if (!issue) return;
-
-    setTitle(issue.title);
-    setDescription(issue.description ?? "");
-    setStatus(issue.status);
-    setPriority(issue.priority);
-    setAssigneeId(
-      issue.assigneeId && typeof issue.assigneeId !== "string"
-        ? issue.assigneeId._id
-        : (issue.assigneeId ?? ""),
-    );
-    setDueDate(issue.dueDate ? issue.dueDate.slice(0, 10) : "");
-  }, [issue]);
 
   const getId = (value: string | { _id: string } | null | undefined) =>
     typeof value === "string" ? value : value?._id;
@@ -113,21 +89,25 @@ export default function IssueDetailsDialog({
       getId(issue.creatorId) === currentUser?.id ||
       getId(issue.assigneeId) === currentUser?.id);
 
-  const handleSave = async () => {
-    if (!issueId || !title.trim()) {
-      toast.error("Issue title is required");
-      return;
-    }
+  const assigneeOptions = (projectData?.project.members ?? []).map(
+    (member) => ({
+      label: `${member.name} (${member.email})`,
+      value: member._id,
+    }),
+  );
+
+  const handleSave = async (values: IssueFormValues) => {
+    if (!issueId) return;
 
     try {
       await updateIssue({
         id: issueId,
-        title: title.trim(),
-        description: description.trim(),
-        status,
-        priority,
-        assigneeId: assigneeId || null,
-        dueDate: dueDate || null,
+        title: values.title.trim(),
+        description: values.description.trim(),
+        status: values.status,
+        priority: values.priority,
+        assigneeId: values.assigneeId || null,
+        dueDate: values.dueDate || null,
       }).unwrap();
 
       toast.success("Issue updated successfully");
@@ -165,190 +145,59 @@ export default function IssueDetailsDialog({
           Failed to load issue details.
         </p>
       ) : (
-        <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-1">
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="issue-title"
-                className="mb-1 block text-sm font-medium"
-              >
-                Title
-              </label>
-              <input
-                id="issue-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                disabled={!canEdit || isSaving}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="issue-description"
-                className="mb-1 block text-sm font-medium"
-              >
-                Description
-              </label>
-              <textarea
-                id="issue-description"
-                rows={3}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                disabled={!canEdit || isSaving}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="issue-status"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Status
-                </label>
-                <select
-                  id="issue-status"
-                  value={status}
-                  onChange={(event) =>
-                    setStatus(event.target.value as IssueStatus)
-                  }
+        <div className=" space-y-6 ">
+          <Formik<IssueFormValues>
+            initialValues={{
+              title: issue.title,
+              description: issue.description ?? "",
+              status: issue.status,
+              priority: issue.priority,
+              assigneeId: getId(issue.assigneeId) ?? "",
+              dueDate: issue.dueDate?.slice(0, 10) ?? "",
+            }}
+            validationSchema={issueFormValidationSchema}
+            enableReinitialize
+            onSubmit={handleSave}
+          >
+            {({ isSubmitting, values }) => (
+              <Form className="space-y-4">
+                <IssueForm
+                  assigneeOptions={assigneeOptions}
+                  isLoadingAssignees={isLoadingProject}
                   disabled={!canEdit || isSaving}
-                  className={inputClass}
-                >
-                  {statuses.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                />
 
-              <div>
-                <label
-                  htmlFor="issue-priority"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  Priority
-                </label>
-                <select
-                  id="issue-priority"
-                  value={priority}
-                  onChange={(event) =>
-                    setPriority(event.target.value as IssuePriority)
-                  }
-                  disabled={!canEdit || isSaving}
-                  className={inputClass}
-                >
-                  {priorities.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  {canEdit && (
+                    <Button
+                      type="submit"
+                      disabled={
+                        isSaving ||
+                        isSubmitting ||
+                        isDeleting ||
+                        !values.title.trim()
+                      }
+                    >
+                      {isSaving ? "Saving..." : "Save changes"}
+                    </Button>
+                  )}
 
-            <div>
-              <label
-                htmlFor="issue-assignee"
-                className="mb-1 block text-sm font-medium"
-              >
-                Assignee
-              </label>
-              <select
-                id="issue-assignee"
-                value={assigneeId}
-                onChange={(event) => setAssigneeId(event.target.value)}
-                disabled={!canEdit || isSaving}
-                className={inputClass}
-              >
-                <option value="">Unassigned</option>
-                {(projectData?.project.members ?? []).map((member) => (
-                  <option key={member._id} value={member._id}>
-                    {member.name} ({member.email})
-                  </option>
-                ))}
-              </select>
-              {!projectData && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Loading project members...
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="issue-due-date"
-                className="mb-1 block text-sm font-medium"
-              >
-                Due date
-              </label>
-              <input
-                id="issue-due-date"
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                disabled={!canEdit || isSaving}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {canEdit && (
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving || isDeleting || !title.trim()}
-                >
-                  {isSaving ? "Saving..." : "Save changes"}
-                </Button>
-              )}
-
-              {isAdmin && projectStatus === "active" && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={isDeleting || isSaving}
-                >
-                  {isDeleting ? "Deleting..." : "Delete issue"}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <section className="border-t pt-4">
-            <h3 className="mb-3 font-semibold">Activity history</h3>
-
-            {isLoadingActivity ? (
-              <p className="text-sm text-gray-500">Loading activity...</p>
-            ) : !activityData?.activity?.length ? (
-              <p className="text-sm text-gray-500">No activity recorded yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {activityData.activity.map((entry) => (
-                  <div key={entry._id} className="rounded-md border p-3">
-                    <p className="text-sm font-medium">
-                      {entry.actorId?.name ?? "A user"} updated the issue
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {new Date(entry.createdAt).toLocaleString()}
-                    </p>
-                    <ul className="mt-2 space-y-1 text-sm">
-                      {entry.changes.map((change, index) => (
-                        <li key={`${entry._id}-${change.field}-${index}`}>
-                          <span className="font-medium">{change.field}</span>:{" "}
-                          {String(change.from ?? "None")} →{" "}
-                          {String(change.to ?? "None")}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+                  {isAdmin && projectStatus === "active" && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={isDeleting || isSaving || isSubmitting}
+                    >
+                      {isDeleting ? "Deleting..." : "Delete issue"}
+                    </Button>
+                  )}
+                </div>
+              </Form>
             )}
-          </section>
+          </Formik>
+
+          <ActivityHistory issueId={issueId} open={open} />
         </div>
       )}
     </CustomDialog>

@@ -7,6 +7,7 @@ import type { Issue, IssueStatus } from "@/store/api/issues/types";
 import IssueCard from "./IssueCard";
 import { useCurrentUser, useIsAdmin } from "@/store/selectors";
 import CreateIssueDialog from "./CreateIssueDialog";
+import { priorityOptions } from "@/constants/options";
 
 const columns: IssueStatus[] = ["To Do", "In Progress", "In Review", "Done"];
 
@@ -35,7 +36,7 @@ const IssueBoard = ({
     sort: "newest",
   });
 
-  const [updateIssue, { isLoading: isUpdating }] = useUpdateIssueMutation();
+  const [updateIssue] = useUpdateIssueMutation();
 
   const canManage = projectStatus === "active";
 
@@ -56,7 +57,7 @@ const IssueBoard = ({
     try {
       await updateIssue({ id: issue._id, status }).unwrap();
       toast.success("Issue status updated");
-    } catch (error) {
+    } catch {
       toast.error("Unable to update issue status");
     }
   };
@@ -102,10 +103,15 @@ const IssueBoard = ({
             aria-label="Filter by priority"
             className="rounded-md border bg-background px-3 py-2 text-sm"
           >
-            <option value="">All priorities</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
+            {priorityOptions?.map((option) => (
+              <option
+                key={option?.value}
+                id={option?.value}
+                value={option?.value}
+              >
+                {option?.label}
+              </option>
+            ))}
           </select>
         </div>
 
