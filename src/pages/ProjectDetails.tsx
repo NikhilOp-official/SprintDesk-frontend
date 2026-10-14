@@ -2,13 +2,14 @@ import { Link, useParams } from "react-router-dom";
 import { useGetProjectByIdQuery } from "@/store/api/projects/query";
 import { Card, CardContent } from "@/components/ui/card";
 import ProjectMembers from "@/components/Projects/ProjectMembers";
-import { useCurrentUser, useIsAdmin } from "@/store/selectors";
 import EditProjectDialog from "@/components/Projects/EditProjectDialog";
 import IssueBoard from "@/components/issues/IssueBoard";
 import IssueDetailsDialog from "@/components/issues/IssueDetailsDialog";
 import { useState } from "react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function ProjectDetails() {
+  const { canEditProject } = usePermissions();
   const { projectId } = useParams<{ projectId: string }>();
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
@@ -17,12 +18,6 @@ export default function ProjectDetails() {
     projectId!,
     { skip: !projectId },
   );
-  const isAdmin = useIsAdmin();
-  const currentUser = useCurrentUser();
-  const canEditProject =
-    isAdmin &&
-    currentUser?.id === data?.project.owner._id &&
-    data?.project.status === "active";
 
   if (isLoading) {
     return <div className="p-6">Loading project...</div>;
@@ -42,7 +37,7 @@ export default function ProjectDetails() {
   }
 
   const { project, summary } = data;
-
+  const canEdit = canEditProject(project);
   return (
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-7xl">
@@ -61,7 +56,7 @@ export default function ProjectDetails() {
             </p>
           </div>
 
-          {canEditProject && (
+          {canEdit && (
             <EditProjectDialog
               status={data.project.status}
               projectId={project._id}
@@ -71,12 +66,7 @@ export default function ProjectDetails() {
           )}
         </div>
         {/* Team Members */}
-        <ProjectMembers
-          projectId={project._id}
-          ownerId={project.owner._id}
-          members={project.members}
-          status={project.status}
-        />
+        <ProjectMembers project={project} />
 
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <SummaryCard title="Total Issues" value={summary.totalIssues} />
@@ -88,8 +78,7 @@ export default function ProjectDetails() {
 
         <div className="mt-8">
           <IssueBoard
-            projectId={project._id}
-            projectStatus={project.status}
+            project={project}
             onOpenIssue={(issue) => {
               setSelectedIssueId(issue._id);
               setIssueDialogOpen(true);
@@ -100,7 +89,6 @@ export default function ProjectDetails() {
           issueId={selectedIssueId}
           open={issueDialogOpen}
           onOpenChange={setIssueDialogOpen}
-          projectStatus={project.status}
         />
       </div>
     </main>

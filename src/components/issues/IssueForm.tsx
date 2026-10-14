@@ -19,12 +19,14 @@ interface IssueFormProps {
   assigneeOptions: SelectOption[];
   disabled?: boolean;
   isLoadingAssignees?: boolean;
+  canAssign?: boolean;
 }
 
 export default function IssueForm({
   assigneeOptions,
   disabled = false,
   isLoadingAssignees = false,
+  canAssign = false,
 }: IssueFormProps) {
   return (
     <>
@@ -70,7 +72,7 @@ export default function IssueForm({
         name="assigneeId"
         placeholder="Unassigned"
         options={assigneeOptions}
-        disabled={disabled || isLoadingAssignees}
+        disabled={disabled || isLoadingAssignees || !canAssign}
       />
 
       {isLoadingAssignees && (

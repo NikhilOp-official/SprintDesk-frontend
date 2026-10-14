@@ -8,17 +8,16 @@ import {
   useDeleteIssueMutation,
 } from "@/store/api/issues/mutation";
 import { useGetProjectByIdQuery } from "@/store/api/projects/query";
-import { useCurrentUser, useIsAdmin } from "@/store/selectors";
 import type { IssuePriority, IssueStatus } from "@/store/api/issues/types";
 import ActivityHistory from "./ActivityHistory";
 import IssueForm from "./IssueForm";
 import { issueFormValidationSchema } from "./schemaValidation";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface IssueDetailsDialogProps {
   issueId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projectStatus: "active" | "archived";
 }
 
 interface IssueFormValues {
@@ -34,10 +33,9 @@ export default function IssueDetailsDialog({
   issueId,
   open,
   onOpenChange,
-  projectStatus,
 }: IssueDetailsDialogProps) {
-  const isAdmin = useIsAdmin();
-  const currentUser = useCurrentUser();
+  const { canDeleteIssue, canEditIssue, canAssignIssue } = usePermissions();
+
   const [deleteIssue, { isLoading: isDeleting }] = useDeleteIssueMutation();
   const {
     data: issue,
@@ -48,7 +46,7 @@ export default function IssueDetailsDialog({
   });
 
   const handleDelete = async () => {
-    if (!issueId || !projectId || !isAdmin) return;
+    if (!issueId || !projectId || !canDelete) return;
 
     const confirmed = window.confirm(
       "Are you sure you want to delete this issue? This action cannot be undone.",
@@ -83,11 +81,11 @@ export default function IssueDetailsDialog({
     typeof value === "string" ? value : value?._id;
 
   const canEdit =
-    projectStatus === "active" &&
-    !!issue &&
-    (isAdmin ||
-      getId(issue.creatorId) === currentUser?.id ||
-      getId(issue.assigneeId) === currentUser?.id);
+    issue && projectData?.project
+      ? canEditIssue(issue, projectData.project)
+      : false;
+
+  const canDelete = projectData ? canDeleteIssue(projectData.project) : false;
 
   const assigneeOptions = (projectData?.project.members ?? []).map(
     (member) => ({
@@ -165,6 +163,9 @@ export default function IssueDetailsDialog({
                   assigneeOptions={assigneeOptions}
                   isLoadingAssignees={isLoadingProject}
                   disabled={!canEdit || isSaving}
+                  canAssign={
+                    projectData && canAssignIssue(projectData?.project)
+                  }
                 />
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -182,7 +183,7 @@ export default function IssueDetailsDialog({
                     </Button>
                   )}
 
-                  {isAdmin && projectStatus === "active" && (
+                  {canDelete && (
                     <Button
                       type="button"
                       variant="destructive"

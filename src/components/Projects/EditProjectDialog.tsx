@@ -2,7 +2,8 @@ import { useState } from "react";
 
 import CustomDialog from "@/components/common/CustomDialog";
 import { Button } from "@/components/ui/button";
-import EditProjectForm, { type ProjectStatus } from "./EditProjectForm";
+import EditProjectForm from "./EditProjectForm";
+import type { ProjectStatus } from "./schemaValidation";
 
 interface EditProjectDialogProps {
   projectId: string;

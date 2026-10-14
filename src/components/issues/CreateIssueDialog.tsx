@@ -13,6 +13,7 @@ import CustomDialog from "../common/CustomDialog";
 
 import IssueForm, { type IssueFormValues } from "./IssueForm";
 import { issueFormValidationSchema } from "./schemaValidation";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface CreateIssueDialogProps {
   projectId: string;
@@ -25,6 +26,7 @@ export default function CreateIssueDialog({
   projectStatus,
   onCreated,
 }: CreateIssueDialogProps) {
+  const { canAssignIssue } = usePermissions();
   const [open, setOpen] = useState(false);
   const [createIssue, { isLoading }] = useCreateIssueMutation();
   const { data: projectData, isLoading: isLoadingProject } =
@@ -103,6 +105,9 @@ export default function CreateIssueDialog({
               <IssueForm
                 assigneeOptions={assigneeOptions}
                 isLoadingAssignees={isLoadingProject}
+                canAssign={
+                  !!projectData?.project && canAssignIssue(projectData.project)
+                }
               />
 
               <div className="flex justify-end gap-2">

@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "..";
 import { logout } from "../authSlice";
+import { toast } from "sonner";
 
 const baseQuery = fetchBaseQuery({
   baseUrl: "http://localhost:7777",
@@ -23,6 +24,7 @@ const baseQueryWithAuthHandling: typeof baseQuery = async (
   const result = await baseQuery(args, api, extraOptions);
 
   if (result.error?.status === 401) {
+    toast.error("Your session has expired. Please log in again.");
     api.dispatch(logout());
   }
 

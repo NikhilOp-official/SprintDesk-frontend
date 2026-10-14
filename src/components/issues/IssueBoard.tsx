@@ -5,30 +5,26 @@ import { useGetProjectIssuesQuery } from "@/store/api/issues/query";
 import { useUpdateIssueMutation } from "@/store/api/issues/mutation";
 import type { Issue, IssueStatus } from "@/store/api/issues/types";
 import IssueCard from "./IssueCard";
-import { useCurrentUser, useIsAdmin } from "@/store/selectors";
 import CreateIssueDialog from "./CreateIssueDialog";
-import { priorityOptions } from "@/constants/options";
+import { priorityFilterOptions } from "@/constants/options";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { Project } from "@/store/api/types";
 
 const columns: IssueStatus[] = ["To Do", "In Progress", "In Review", "Done"];
 
 interface IssueBoardProps {
-  projectId: string;
-  projectStatus: "active" | "archived";
+  project: Project;
   onOpenIssue: (issue: Issue) => void;
 }
 
-const IssueBoard = ({
-  projectId,
-  projectStatus,
-  onOpenIssue,
-}: IssueBoardProps) => {
-  const isAdmin = useIsAdmin();
+const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
+  const { canCreateIssue, canEditIssue } = usePermissions();
   const [search, setSearch] = useState("");
   const [priority, setPriority] = useState("");
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, refetch } = useGetProjectIssuesQuery({
-    projectId,
+    projectId: project?._id,
     page,
     limit: 100,
     search,
@@ -38,18 +34,7 @@ const IssueBoard = ({
 
   const [updateIssue] = useUpdateIssueMutation();
 
-  const canManage = projectStatus === "active";
-
-  const currentUser = useCurrentUser();
-
-  const getId = (value: string | { _id: string } | null | undefined) =>
-    typeof value === "string" ? value : value?._id;
-
-  const canEditIssue = (issue: Issue) =>
-    canManage &&
-    (isAdmin ||
-      getId(issue.creatorId) === currentUser?.id ||
-      getId(issue.assigneeId) === currentUser?.id);
+  const canCreate = canCreateIssue(project);
 
   const handleStatusChange = async (issue: Issue, status: IssueStatus) => {
     if (status === issue.status) return;
@@ -103,7 +88,7 @@ const IssueBoard = ({
             aria-label="Filter by priority"
             className="rounded-md border bg-background px-3 py-2 text-sm"
           >
-            {priorityOptions?.map((option) => (
+            {priorityFilterOptions?.map((option) => (
               <option
                 key={option?.value}
                 id={option?.value}
@@ -115,10 +100,10 @@ const IssueBoard = ({
           </select>
         </div>
 
-        {canManage && (
+        {canCreate && (
           <CreateIssueDialog
-            projectId={projectId}
-            projectStatus={projectStatus}
+            projectId={project?._id}
+            projectStatus={project?.status}
           />
         )}
       </div>
@@ -156,7 +141,7 @@ const IssueBoard = ({
                       issue={issue}
                       onOpen={onOpenIssue}
                       onStatusChange={handleStatusChange}
-                      canEdit={canEditIssue(issue)}
+                      canEdit={canEditIssue(issue, project)}
                     />
                   ))}
                 </div>

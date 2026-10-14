@@ -8,35 +8,22 @@ import {
   useAddProjectMembersMutation,
   useRemoveProjectMemberMutation,
 } from "@/store/api/projects/mutation";
-import { useCurrentUser, useIsAdmin } from "@/store/selectors";
-
-interface Member {
-  _id: string;
-  name: string;
-  email: string;
-}
+import { usePermissions } from "@/hooks/usePermissions";
+import type { Project } from "@/store/api/types";
 
 interface ProjectMembersProps {
-  projectId: string;
-  ownerId: string;
-  members: Member[];
-  status: "active" | "archived";
+  project: Project;
 }
 
-export default function ProjectMembers({
-  projectId,
-  ownerId,
-  members,
-  status,
-}: ProjectMembersProps) {
+export default function ProjectMembers({ project }: ProjectMembersProps) {
+  const { canManageProjectMembers } = usePermissions();
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const isAdmin = useIsAdmin();
-  const currentUser = useCurrentUser();
+  const canManage = canManageProjectMembers(project);
 
-  const canManage =
-    isAdmin && currentUser?.id === ownerId && status === "active";
+  const projectId = project._id;
+  const members = project.members;
 
   const {
     data,
