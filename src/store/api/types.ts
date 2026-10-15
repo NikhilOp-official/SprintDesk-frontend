@@ -90,3 +90,50 @@ export interface MembersResponse {
   count: number;
   members: Member[];
 }
+
+export interface CreateMemberRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface Member {
+  id?: string;
+  name: string;
+  email: string;
+  role: "member";
+}
+
+export interface CreateMemberResponse {
+  message: string;
+  user: Member;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+}
+
+export interface CreateMemberRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface CreateMemberResponse {
+  message: string;
+  user: Member;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+}

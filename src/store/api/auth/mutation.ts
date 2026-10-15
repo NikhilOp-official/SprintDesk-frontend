@@ -1,5 +1,12 @@
 import { api } from "..";
-import type { LoginRequest, LoginResponse } from "../types";
+import type {
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  CreateMemberRequest,
+  CreateMemberResponse,
+  LoginRequest,
+  LoginResponse,
+} from "../types";
 
 const authMutations = api.injectEndpoints({
   endpoints: (builder) => ({
@@ -10,7 +17,29 @@ const authMutations = api.injectEndpoints({
         body: credentials,
       }),
     }),
+    createMember: builder.mutation<CreateMemberResponse, CreateMemberRequest>({
+      query: (body) => ({
+        url: "/users/member",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Members"],
+    }),
+    changePassword: builder.mutation<
+      ChangePasswordResponse,
+      ChangePasswordRequest
+    >({
+      query: (body) => ({
+        url: "/auth/change-password",
+        method: "PATCH",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useLoginMutation } = authMutations;
+export const {
+  useLoginMutation,
+  useChangePasswordMutation,
+  useCreateMemberMutation,
+} = authMutations;

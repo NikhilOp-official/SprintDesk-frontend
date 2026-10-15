@@ -1,4 +1,5 @@
 import type { SelectOption } from "@/components/common/SelectField";
+import type { IssueStatus } from "@/store/api/issues/types";
 
 export const statusOptions: SelectOption[] = [
   { label: "To Do", value: "To Do" },
@@ -16,4 +17,10 @@ export const priorityOptions: SelectOption[] = [
 export const priorityFilterOptions: SelectOption[] = [
   { label: "All priorities", value: "" },
   ...priorityOptions,
+];
+export const statuses: IssueStatus[] = [
+  "To Do",
+  "In Progress",
+  "In Review",
+  "Done",
 ];

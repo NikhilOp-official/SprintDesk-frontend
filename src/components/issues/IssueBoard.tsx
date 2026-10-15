@@ -6,11 +6,14 @@ import { useUpdateIssueMutation } from "@/store/api/issues/mutation";
 import type { Issue, IssueStatus } from "@/store/api/issues/types";
 import IssueCard from "./IssueCard";
 import CreateIssueDialog from "./CreateIssueDialog";
-import { priorityFilterOptions } from "@/constants/options";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Project } from "@/store/api/types";
+import Pagination from "../common/Pagination";
+import { useDebounce } from "@/hooks/useDebounce";
+import IssueFilters from "./IssueFilters";
 
 const columns: IssueStatus[] = ["To Do", "In Progress", "In Review", "Done"];
+const PAGE_SIZE = 10;
 
 interface IssueBoardProps {
   project: Project;
@@ -19,22 +22,31 @@ interface IssueBoardProps {
 
 const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
   const { canCreateIssue, canEditIssue } = usePermissions();
+
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search.trim(), 350);
+  const [status, setStatus] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "dueDate">("newest");
   const [priority, setPriority] = useState("");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError, refetch } = useGetProjectIssuesQuery({
-    projectId: project?._id,
-    page,
-    limit: 100,
-    search,
-    priority: priority || undefined,
-    sort: "newest",
-  });
+  const { data, isLoading, isFetching, isError, refetch } =
+    useGetProjectIssuesQuery({
+      projectId: project._id,
+      page,
+      limit: PAGE_SIZE,
+      search: debouncedSearch || undefined,
+      status: status || undefined,
+      priority: priority || undefined,
+      assigneeId: assigneeId || undefined,
+      sort,
+    });
 
   const [updateIssue] = useUpdateIssueMutation();
 
   const canCreate = canCreateIssue(project);
+  const issues = data?.issues ?? [];
 
   const handleStatusChange = async (issue: Issue, status: IssueStatus) => {
     if (status === issue.status) return;
@@ -62,8 +74,6 @@ const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
     );
   }
 
-  const issues = data?.issues ?? [];
-
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -79,34 +89,30 @@ const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
             className="rounded-md border bg-background px-3 py-2 text-sm"
           />
 
-          <select
-            value={priority}
-            onChange={(event) => {
-              setPriority(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter by priority"
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {priorityFilterOptions?.map((option) => (
-              <option
-                key={option?.value}
-                id={option?.value}
-                value={option?.value}
-              >
-                {option?.label}
-              </option>
-            ))}
-          </select>
+          <IssueFilters
+            assigneeId={assigneeId}
+            onAssigneeChange={setAssigneeId}
+            onPriorityChange={setPriority}
+            onSortChange={setSort}
+            onStatusChange={setStatus}
+            priority={priority}
+            project={project}
+            sort={sort}
+            status={status}
+          />
         </div>
 
         {canCreate && (
           <CreateIssueDialog
-            projectId={project?._id}
-            projectStatus={project?.status}
+            projectId={project._id}
+            projectStatus={project.status}
           />
         )}
       </div>
+
+      {isFetching && !isLoading && (
+        <p className="text-sm text-muted-foreground">Updating issues...</p>
+      )}
 
       {issues.length === 0 ? (
         <div className="rounded-lg border border-dashed p-10 text-center">
@@ -150,6 +156,15 @@ const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
           })}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalPages={data?.pagination.totalPages ?? 0}
+        totalItems={data?.pagination.total ?? 0}
+        onPageChange={setPage}
+        isLoading={isFetching}
+      />
     </section>
   );
 };

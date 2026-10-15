@@ -17,6 +17,7 @@ const projectsQueries = api.injectEndpoints({
     }),
     getAvailableMembers: builder.query<MembersResponse, void>({
       query: () => "/users/members",
+      providesTags: ["Members"],
     }),
   }),
 });

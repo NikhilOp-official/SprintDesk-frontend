@@ -1,4 +1,8 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  createApi,
+  fetchBaseQuery,
+  type FetchBaseQueryError,
+} from "@reduxjs/toolkit/query/react";
 import type { RootState } from "..";
 import { logout } from "../authSlice";
 import { toast } from "sonner";
@@ -18,14 +22,25 @@ const baseQuery = fetchBaseQuery({
 
 const baseQueryWithAuthHandling: typeof baseQuery = async (
   args,
-  api,
+  baseapi,
   extraOptions,
 ) => {
-  const result = await baseQuery(args, api, extraOptions);
+  const result = await baseQuery(args, baseapi, extraOptions);
 
-  if (result.error?.status === 401) {
-    toast.error("Your session has expired. Please log in again.");
-    api.dispatch(logout());
+  if (result.error) {
+    const error = result.error as FetchBaseQueryError;
+
+    if (error.status === 401) {
+      const state = baseapi.getState() as RootState;
+      const hadSession = Boolean(state.auth.token);
+
+      if (hadSession) {
+        baseapi.dispatch(logout());
+        baseapi.dispatch(api.util.resetApiState());
+
+        toast.error("Your session has expired. Please log in again.");
+      }
+    }
   }
 
   return result;
@@ -34,6 +49,6 @@ const baseQueryWithAuthHandling: typeof baseQuery = async (
 export const api = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithAuthHandling,
-  tagTypes: ["Projects", "Issues", "Issue", "IssueActivity"],
+  tagTypes: ["Projects", "Issues", "Issue", "IssueActivity", "Members"],
   endpoints: () => ({}),
 });

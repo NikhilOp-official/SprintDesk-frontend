@@ -3,11 +3,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import CreateProjectDialog from "@/components/Projects/CreateProjectDialog";
 import { useIsAdmin } from "@/store/selectors";
+import ManageMembersDialog from "@/components/members/ManageMembersDialog";
+import { Button } from "@/components/ui/button";
+import { useAppDispatch } from "@/store";
+import { logout } from "@/store/authSlice";
+import ChangePasswordDialog from "@/components/auth/ChangePasswordDialog";
+import { api } from "@/store/api";
 
 export default function Dashboard() {
   const { data, isLoading, isError } = useGetProjectsQuery();
   const navigate = useNavigate();
   const isAdmin = useIsAdmin();
+  const dispatch = useAppDispatch();
+
+  const handleLogout = () => {
+    dispatch(logout());
+    dispatch(api.util.resetApiState());
+
+    navigate("/login", { replace: true });
+  };
 
   if (isLoading) {
     return <div className="p-6">Loading projects...</div>;
@@ -34,7 +48,19 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {isAdmin && <CreateProjectDialog />}
+          <div className="flex flex-wrap items-center gap-3">
+            <ChangePasswordDialog />
+
+            {isAdmin && (
+              <>
+                <ManageMembersDialog />
+                <CreateProjectDialog />
+              </>
+            )}
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
