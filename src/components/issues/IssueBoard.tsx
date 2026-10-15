@@ -91,10 +91,22 @@ const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
 
           <IssueFilters
             assigneeId={assigneeId}
-            onAssigneeChange={setAssigneeId}
-            onPriorityChange={setPriority}
-            onSortChange={setSort}
-            onStatusChange={setStatus}
+            onAssigneeChange={(value) => {
+              setAssigneeId(value);
+              setPage(1);
+            }}
+            onPriorityChange={(value) => {
+              setPriority(value);
+              setPage(1);
+            }}
+            onSortChange={(value) => {
+              setSort(value);
+              setPage(1);
+            }}
+            onStatusChange={(value) => {
+              setStatus(value);
+              setPage(1);
+            }}
             priority={priority}
             project={project}
             sort={sort}

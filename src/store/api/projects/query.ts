@@ -13,7 +13,10 @@ const projectsQueries = api.injectEndpoints({
     }),
     getProjectById: builder.query<ProjectDetailsResponse, string>({
       query: (projectId) => `/projects/${projectId}`,
-      providesTags: ["Projects"],
+      providesTags: (_result, _error, projectId) => [
+        "Projects",
+        { type: "Projects", id: projectId },
+      ],
     }),
     getAvailableMembers: builder.query<MembersResponse, void>({
       query: () => "/users/members",
