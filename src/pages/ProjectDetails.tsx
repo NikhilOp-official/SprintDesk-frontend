@@ -7,10 +7,12 @@ import IssueBoard from "@/components/issues/IssueBoard";
 import IssueDetailsDialog from "@/components/issues/IssueDetailsDialog";
 import { useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useProjectSocket } from "@/hooks/useProjectSocket";
 
 export default function ProjectDetails() {
-  const { canEditProject } = usePermissions();
   const { projectId } = useParams<{ projectId: string }>();
+  useProjectSocket(projectId);
+  const { canEditProject } = usePermissions();
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
 
@@ -25,10 +27,15 @@ export default function ProjectDetails() {
 
   if (isError || !data) {
     console.error("Project API error:", error);
-
+    const status = error && "status" in error ? error.status : undefined;
+    const isForbidden = status === 403 || status === 404;
     return (
       <main className="p-6">
-        <p className="text-red-600">Failed to load project.</p>
+        <p className="text-red-600">
+          {isForbidden
+            ? "You no longer have access to this project."
+            : "Failed to load project. Please try again."}
+        </p>
         <Link to="/" className="mt-3 inline-block text-blue-600 underline">
           Back to projects
         </Link>
