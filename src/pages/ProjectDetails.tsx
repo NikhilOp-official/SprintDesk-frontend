@@ -1,114 +1,139 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { useGetProjectByIdQuery } from "@/store/api/projects/query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import ProjectMembers from "@/components/Projects/ProjectMembers";
-import EditProjectDialog from "@/components/Projects/EditProjectDialog";
 import IssueBoard from "@/components/issues/IssueBoard";
 import IssueDetailsDialog from "@/components/issues/IssueDetailsDialog";
-import { useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProjectSocket } from "@/hooks/useProjectSocket";
+import ErrorComponent from "@/components/common/ErrorComponent";
+import ProjectDetailsHeader from "@/components/Projects/ProjectDetailsHeader";
+import IssueSummary from "@/components/issues/IssueSummary";
 
 export default function ProjectDetails() {
   const { projectId } = useParams<{ projectId: string }>();
+
   useProjectSocket(projectId);
+
   const { canEditProject } = usePermissions();
+
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
 
-  const { data, isLoading, isError, error } = useGetProjectByIdQuery(
+  const { data, isLoading, isError, error, refetch } = useGetProjectByIdQuery(
     projectId!,
-    { skip: !projectId },
+    {
+      skip: !projectId,
+    },
   );
 
   if (isLoading) {
-    return <div className="p-6">Loading project...</div>;
+    return (
+      <main className="min-h-[60vh] bg-muted/20 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl animate-pulse space-y-7">
+          <div className="h-5 w-32 rounded bg-muted" />
+          <div className="h-28 rounded-2xl bg-muted" />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-24 rounded-xl bg-muted" />
+            ))}
+          </div>
+
+          <div className="h-64 rounded-2xl bg-muted" />
+        </div>
+      </main>
+    );
   }
 
   if (isError || !data) {
-    console.error("Project API error:", error);
     const status = error && "status" in error ? error.status : undefined;
+
     const isForbidden = status === 403 || status === 404;
+
     return (
-      <main className="p-6">
-        <p className="text-red-600">
-          {isForbidden
-            ? "You no longer have access to this project."
-            : "Failed to load project. Please try again."}
-        </p>
-        <Link to="/" className="mt-3 inline-block text-blue-600 underline">
-          Back to projects
-        </Link>
-      </main>
+      <>
+        <ErrorComponent
+          title={isForbidden ? "Project unavailable" : "Unable to load project"}
+          description={
+            isForbidden
+              ? "You may no longer have access to this project."
+              : "Something went wrong while loading the project. Please try again."
+          }
+        />
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {!isForbidden && (
+            <Button variant="outline" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          )}
+
+          <Button variant="default">
+            <Link to="/">
+              <ArrowLeft className="size-4" />
+              Back to projects
+            </Link>
+          </Button>
+        </div>
+      </>
     );
   }
 
   const { project, summary } = data;
   const canEdit = canEditProject(project);
+  const isActive = project.status === "active";
+
+  const openIssue = (issue: { _id: string }) => {
+    setSelectedIssueId(issue._id);
+    setIssueDialogOpen(true);
+  };
+
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl">
-        <Link to="/" className="text-sm text-blue-600 hover:underline">
-          ← Back to projects
+    <main className="min-h-screen bg-muted/20 px-4 py-5 text-foreground sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+      <div className="mx-auto max-w-7xl space-y-7 sm:space-y-8">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="size-4" />
+          Back to projects
         </Link>
 
-        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">{project.name}</h1>
-            <p className="mt-2 text-gray-600">
-              {project.description || "No description provided."}
-            </p>
-            <p className="mt-2 text-sm text-gray-500">
-              Status: {project.status} · Owner: {project.owner.name}
+        <ProjectDetailsHeader
+          canEdit={canEdit}
+          isActive={isActive}
+          project={project}
+        />
+
+        <section>
+          <ProjectMembers project={project} />
+        </section>
+
+        <IssueSummary summary={summary} />
+
+        <section>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold tracking-tight">Issues</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              View and manage issues across each workflow status.
             </p>
           </div>
 
-          {canEdit && (
-            <EditProjectDialog
-              status={data.project.status}
-              projectId={project._id}
-              name={project.name}
-              description={project.description}
-            />
-          )}
-        </div>
-        {/* Team Members */}
-        <ProjectMembers project={project} />
+          <IssueBoard project={project} onOpenIssue={openIssue} />
+        </section>
 
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
-          <SummaryCard title="Total Issues" value={summary.totalIssues} />
-          <SummaryCard title="To Do" value={summary.todo} />
-          <SummaryCard title="In Progress" value={summary.inProgress} />
-          <SummaryCard title="In Review" value={summary.inReview} />
-          <SummaryCard title="Done" value={summary.done} />
-        </div>
-
-        <div className="mt-8">
-          <IssueBoard
-            project={project}
-            onOpenIssue={(issue) => {
-              setSelectedIssueId(issue._id);
-              setIssueDialogOpen(true);
-            }}
-          />
-        </div>
-        <IssueDetailsDialog
-          issueId={selectedIssueId}
-          open={issueDialogOpen}
-          onOpenChange={setIssueDialogOpen}
-        />
+        <footer className="border-t border-border/70 pt-5 text-xs text-muted-foreground">
+          SprintDesk · Project and issue management
+        </footer>
       </div>
-    </main>
-  );
-}
 
-function SummaryCard({ title, value }: { title: string; value: number }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-sm text-gray-500">{title}</p>
-        <p className="mt-1 text-2xl font-bold">{value}</p>
-      </CardContent>
-    </Card>
+      <IssueDetailsDialog
+        issueId={selectedIssueId}
+        open={issueDialogOpen}
+        onOpenChange={setIssueDialogOpen}
+      />
+    </main>
   );
 }

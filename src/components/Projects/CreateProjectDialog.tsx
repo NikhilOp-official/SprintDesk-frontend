@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FolderPlus } from "lucide-react";
 
 import CustomDialog from "@/components/common/CustomDialog";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,14 @@ export default function CreateProjectDialog() {
 
   return (
     <CustomDialog
-      title="Create Project"
-      description="Enter the details for your new project."
-      trigger={<Button>Create Project</Button>}
+      title="Create a new project"
+      description="Set up your workspace and bring your team together."
+      trigger={
+        <Button className="h-10 gap-2 rounded-xl px-4 shadow-sm">
+          <FolderPlus className="size-4" />
+          Create project
+        </Button>
+      }
       open={open}
       onOpenChange={setOpen}
     >

@@ -1,5 +1,7 @@
 import { Formik, Form } from "formik";
 import { toast } from "sonner";
+import { Check, LoaderCircle, Users, UserRound } from "lucide-react";
+
 import {
   useCreateProjectMutation,
   useAddProjectMembersMutation,
@@ -18,6 +20,7 @@ export default function CreateProjectForm({
   onSuccess,
 }: CreateProjectFormProps) {
   const [createProject, { isLoading: isCreating }] = useCreateProjectMutation();
+
   const [addProjectMembers, { isLoading: isAddingMembers }] =
     useAddProjectMembersMutation();
 
@@ -26,6 +29,8 @@ export default function CreateProjectForm({
     isLoading: isLoadingMembers,
     isError: membersError,
   } = useGetAvailableMembersQuery();
+
+  const isSubmitting = isCreating || isAddingMembers;
 
   return (
     <Formik
@@ -61,71 +66,134 @@ export default function CreateProjectForm({
         }
       }}
     >
-      {({ isSubmitting, values, setFieldValue }) => (
-        <Form className="space-y-4">
+      {({ values, setFieldValue }) => (
+        <Form className="space-y-6">
+          {/* Project details */}
           <ProjectForm />
 
-          <div className="space-y-2">
-            <Label>Team members (optional)</Label>
+          {/* Team member selection */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-1">
+                <Label className="text-sm font-semibold">
+                  Team members
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </Label>
+
+                <p className="text-sm text-muted-foreground">
+                  Choose who can collaborate on this project.
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
+                <Users className="size-3.5" />
+                {values.memberIds.length} selected
+              </span>
+            </div>
 
             {isLoadingMembers ? (
-              <p className="text-sm text-gray-500">Loading members...</p>
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed py-8 text-sm text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin" />
+                Loading team members...
+              </div>
             ) : membersError ? (
-              <p className="text-sm text-red-500">Unable to load members.</p>
+              <div
+                role="alert"
+                className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+              >
+                Unable to load team members. Please try again later.
+              </div>
             ) : data?.members.length ? (
-              <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                {data.members.map((member) => (
-                  <label
-                    key={member._id}
-                    className="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={values.memberIds.includes(member._id)}
-                      onChange={(event) => {
-                        const nextIds = event.target.checked
-                          ? [...values.memberIds, member._id]
-                          : values.memberIds.filter((id) => id !== member._id);
+              <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border bg-background p-2">
+                {data.members.map((member) => {
+                  const selected = values.memberIds.includes(member._id);
 
-                        setFieldValue("memberIds", nextIds);
-                      }}
-                    />
+                  return (
+                    <label
+                      key={member._id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
+                        selected
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-transparent hover:border-border hover:bg-muted/40"
+                      } ${isSubmitting ? "cursor-not-allowed opacity-60" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={isSubmitting}
+                        onChange={(event) => {
+                          const nextIds = event.target.checked
+                            ? [...values.memberIds, member._id]
+                            : values.memberIds.filter(
+                                (id) => id !== member._id,
+                              );
 
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">
-                        {member.name}
+                          setFieldValue("memberIds", nextIds);
+                        }}
+                        className="size-4 shrink-0 accent-primary"
+                      />
+
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+                        {member.name.trim().charAt(0).toUpperCase()}
                       </span>
-                      <span className="block text-xs text-gray-500">
-                        {member.email}
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {member.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {member.email}
+                        </span>
                       </span>
-                    </span>
-                  </label>
-                ))}
+
+                      {selected && (
+                        <Check
+                          className="size-4 shrink-0 text-primary"
+                          aria-label="Selected"
+                        />
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No members available.</p>
+              <div className="flex flex-col items-center rounded-xl border border-dashed px-4 py-8 text-center">
+                <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-muted">
+                  <UserRound className="size-5 text-muted-foreground" />
+                </span>
+
+                <p className="text-sm font-medium">No members available</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  You can create the project and add members later.
+                </p>
+              </div>
             )}
+          </section>
 
-            <p className="text-xs text-gray-500">
-              {values.memberIds.length} member(s) selected
-            </p>
+          {/* Submit action */}
+          <div className="border-t pt-4">
+            <Button
+              type="submit"
+              disabled={
+                isSubmitting || isLoadingMembers || membersError === true
+              }
+              className="h-11 w-full gap-2 rounded-xl shadow-sm"
+            >
+              {isSubmitting ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" />
+                  Creating project...
+                </>
+              ) : (
+                <>
+                  <Check className="size-4" />
+                  Create project
+                </>
+              )}
+            </Button>
           </div>
-
-          <Button
-            type="submit"
-            disabled={
-              isSubmitting ||
-              isCreating ||
-              isAddingMembers ||
-              isLoadingMembers ||
-              membersError
-            }
-            className="w-full"
-          >
-            {isCreating || isAddingMembers
-              ? "Creating project..."
-              : "Create Project"}
-          </Button>
         </Form>
       )}
     </Formik>

@@ -1,108 +1,110 @@
 import { useGetProjectsQuery } from "@/store/api/projects/query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import CreateProjectDialog from "@/components/Projects/CreateProjectDialog";
-import { useIsAdmin } from "@/store/selectors";
-import ManageMembersDialog from "@/components/members/ManageMembersDialog";
-import { Button } from "@/components/ui/button";
+import { useCurrentUser, useIsAdmin } from "@/store/selectors";
 import { useAppDispatch } from "@/store";
 import { logout } from "@/store/authSlice";
-import ChangePasswordDialog from "@/components/auth/ChangePasswordDialog";
 import { api } from "@/store/api";
+import Header from "@/components/Header";
+import ProjectSummary from "@/components/dashboard/ProjectSummary";
+import ErrorComponent from "@/components/common/ErrorComponent";
+import ProjectList from "@/components/dashboard/ProjectList";
 
 export default function Dashboard() {
-  const { data, isLoading, isError } = useGetProjectsQuery();
+  const { data, isLoading, isError, refetch } = useGetProjectsQuery();
   const navigate = useNavigate();
   const isAdmin = useIsAdmin();
+  const user = useCurrentUser();
   const dispatch = useAppDispatch();
+
+  const projects = data?.projects ?? [];
+
+  const activeProjects = projects.filter(
+    (project) => project.status === "active",
+  ).length;
+
+  const archivedProjects = projects.length - activeProjects;
 
   const handleLogout = () => {
     dispatch(logout());
     dispatch(api.util.resetApiState());
-
     navigate("/login", { replace: true });
   };
 
   if (isLoading) {
-    return <div className="p-6">Loading projects...</div>;
+    return (
+      <main className="min-h-[60vh] bg-muted/20 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl animate-pulse space-y-8">
+          <div className="h-36 rounded-2xl bg-muted" />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-24 rounded-xl bg-muted" />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-52 rounded-xl bg-muted" />
+            ))}
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (isError) {
     return (
-      <div className="p-6 text-red-500">
-        Failed to load projects. Please try again.
-      </div>
+      <ErrorComponent
+        title="Projects could not load"
+        description="Check your connection and try again."
+        onTry={refetch}
+      />
     );
   }
 
-  const projects = data?.projects ?? [];
+  const firstName = user?.name?.trim().split(/\s+/)[0];
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">SprintDesk</h1>
-            <p className="mt-2 text-gray-600">
-              Welcome back! Here are your projects.
+    <main className="min-h-screen bg-muted/20 px-4 py-5 text-foreground sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+      <div className="mx-auto max-w-7xl space-y-7 sm:space-y-9">
+        <Header isAdmin={isAdmin} onLogout={handleLogout} />
+
+        {/* Welcome section */}
+        <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-primary">
+              {isAdmin ? "Admin workspace" : "Member workspace"}
+            </p>
+
+            <h1 className="mt-2 break-words text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+              Welcome back{firstName ? `, ${firstName}` : ""}!
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Manage your projects, follow progress, and keep your team moving
+              forward.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <ChangePasswordDialog />
+          {isAdmin && (
+            <div className="w-full shrink-0 sm:w-fit">
+              <CreateProjectDialog />
+            </div>
+          )}
+        </section>
 
-            {isAdmin && (
-              <>
-                <ManageMembersDialog />
-                <CreateProjectDialog />
-              </>
-            )}
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
-            <Card
-              key={project._id}
-              className="cursor-pointer transition-shadow hover:shadow-md"
-              onClick={() => navigate(`/projects/${project._id}`)}
-            >
-              <CardHeader>
-                <CardTitle>{project.name}</CardTitle>
-              </CardHeader>
+        <ProjectSummary
+          active={activeProjects}
+          archived={archivedProjects}
+          total={projects.length}
+        />
 
-              <CardContent>
-                <p className="text-sm text-gray-600">
-                  {project.description || "No description provided."}
-                </p>
+        <ProjectList projects={projects} />
 
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-sm text-gray-500">
-                    {project.members.length} members
-                  </span>
-
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      project.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    {project.status}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {projects.length === 0 && (
-          <p className="mt-8 text-gray-500">
-            No projects found for your account.
-          </p>
-        )}
+        <footer className="border-t border-border/70 pt-5 text-xs text-muted-foreground">
+          SprintDesk · Project and issue management
+        </footer>
       </div>
     </main>
   );

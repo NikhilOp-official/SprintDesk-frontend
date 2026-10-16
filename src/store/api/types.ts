@@ -38,6 +38,13 @@ export interface ProjectsResponse {
   projects: Project[];
 }
 
+export interface ProjectSummary {
+  totalIssues: number;
+  todo: number;
+  inProgress: number;
+  inReview: number;
+  done: number;
+}
 export interface ProjectDetailsResponse {
   project: Project;
   // issues: {
@@ -50,13 +57,7 @@ export interface ProjectDetailsResponse {
   //   assigneeId: string | null;
   //   dueDate?: string;
   // }[];
-  summary: {
-    totalIssues: number;
-    todo: number;
-    inProgress: number;
-    inReview: number;
-    done: number;
-  };
+  summary: ProjectSummary;
 }
 
 export interface CreateProjectRequest {

@@ -1,18 +1,18 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGetProjectIssuesQuery } from "@/store/api/issues/query";
-import { useUpdateIssueMutation } from "@/store/api/issues/mutation";
 import type { Issue, IssueStatus } from "@/store/api/issues/types";
-import IssueCard from "./IssueCard";
 import CreateIssueDialog from "./CreateIssueDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Project } from "@/store/api/types";
 import Pagination from "../common/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
 import IssueFilters from "./IssueFilters";
+import IssuesColumn from "./IssuesColumn";
 
 const columns: IssueStatus[] = ["To Do", "In Progress", "In Review", "Done"];
+
 const PAGE_SIZE = 10;
 
 interface IssueBoardProps {
@@ -21,7 +21,7 @@ interface IssueBoardProps {
 }
 
 const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
-  const { canCreateIssue, canEditIssue } = usePermissions();
+  const { canCreateIssue } = usePermissions();
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search.trim(), 350);
@@ -43,31 +43,45 @@ const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
       sort,
     });
 
-  const [updateIssue] = useUpdateIssueMutation();
-
   const canCreate = canCreateIssue(project);
   const issues = data?.issues ?? [];
 
-  const handleStatusChange = async (issue: Issue, status: IssueStatus) => {
-    if (status === issue.status) return;
-
-    try {
-      await updateIssue({ id: issue._id, status }).unwrap();
-      toast.success("Issue status updated");
-    } catch {
-      toast.error("Unable to update issue status");
-    }
-  };
-
   if (isLoading) {
-    return <p className="py-8 text-center">Loading issues...</p>;
+    return (
+      <div className="space-y-5">
+        <div className="h-11 w-full animate-pulse rounded-xl bg-muted sm:max-w-sm" />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {columns.map((column) => (
+            <div
+              key={column}
+              className="min-h-64 animate-pulse rounded-2xl border bg-muted/30 p-4"
+            >
+              <div className="mb-5 h-5 w-28 rounded bg-muted" />
+              <div className="space-y-3">
+                <div className="h-28 rounded-xl bg-muted" />
+                <div className="h-24 rounded-xl bg-muted" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (isError) {
     return (
-      <div className="space-y-3 py-8 text-center">
-        <p>Unable to load issues.</p>
-        <Button variant="outline" onClick={() => refetch()}>
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card px-5 py-14 text-center">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-muted">
+          <Search className="size-5 text-muted-foreground" />
+        </div>
+
+        <h3 className="font-semibold">Couldn't load issues</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          Something went wrong while fetching this project's issues.
+        </p>
+
+        <Button variant="outline" className="mt-5" onClick={() => refetch()}>
           Try again
         </Button>
       </div>
@@ -75,95 +89,104 @@ const IssueBoard = ({ project, onOpenIssue }: IssueBoardProps) => {
   }
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search issues..."
-            aria-label="Search issues"
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          />
+    <section className="space-y-5">
+      {/* Board toolbar */}
+      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full xl:max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
-          <IssueFilters
-            assigneeId={assigneeId}
-            onAssigneeChange={(value) => {
-              setAssigneeId(value);
-              setPage(1);
-            }}
-            onPriorityChange={(value) => {
-              setPriority(value);
-              setPage(1);
-            }}
-            onSortChange={(value) => {
-              setSort(value);
-              setPage(1);
-            }}
-            onStatusChange={(value) => {
-              setStatus(value);
-              setPage(1);
-            }}
-            priority={priority}
-            project={project}
-            sort={sort}
-            status={status}
-          />
+            <input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search issues..."
+              aria-label="Search issues"
+              className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <IssueFilters
+              assigneeId={assigneeId}
+              onAssigneeChange={(value) => {
+                setAssigneeId(value);
+                setPage(1);
+              }}
+              onPriorityChange={(value) => {
+                setPriority(value);
+                setPage(1);
+              }}
+              onSortChange={(value) => {
+                setSort(value);
+                setPage(1);
+              }}
+              onStatusChange={(value) => {
+                setStatus(value);
+                setPage(1);
+              }}
+              priority={priority}
+              project={project}
+              sort={sort}
+              status={status}
+            />
+
+            {canCreate && (
+              <CreateIssueDialog
+                projectId={project._id}
+                projectStatus={project.status}
+              />
+            )}
+          </div>
         </div>
 
-        {canCreate && (
-          <CreateIssueDialog
-            projectId={project._id}
-            projectStatus={project.status}
-          />
-        )}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+          {/* <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {data?.pagination.total ?? 0}
+            </span>{" "}
+            issues in this project
+          </p> */}
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {isFetching && (
+              <>
+                <span className="size-2 animate-pulse rounded-full bg-primary" />
+                Updating issues...
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {isFetching && !isLoading && (
-        <p className="text-sm text-muted-foreground">Updating issues...</p>
-      )}
-
+      {/* Issue board */}
       {issues.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="font-medium">No issues found</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Try changing the filters or create an issue.
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card px-5 py-14 text-center">
+          <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+            <Search className="size-6 text-primary" />
+          </div>
+
+          <h3 className="font-semibold">No issues found</h3>
+
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            {search || status || priority || assigneeId
+              ? "Try adjusting your search or filters to find what you're looking for."
+              : "There are no issues on this page yet."}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {columns.map((status) => {
-            const columnIssues = issues.filter(
-              (issue) => issue.status === status,
-            );
-
+          {columns.map((column) => {
             return (
-              <section
-                key={status}
-                className="min-w-0 rounded-lg bg-muted/40 p-3"
-              >
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="font-semibold">{status}</h3>
-                  <span className="rounded-full bg-background px-2 py-0.5 text-xs">
-                    {columnIssues.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {columnIssues.map((issue) => (
-                    <IssueCard
-                      key={issue._id}
-                      issue={issue}
-                      onOpen={onOpenIssue}
-                      onStatusChange={handleStatusChange}
-                      canEdit={canEditIssue(issue, project)}
-                    />
-                  ))}
-                </div>
-              </section>
+              <IssuesColumn
+                column={column}
+                issues={issues}
+                onOpenIssue={onOpenIssue}
+                project={project}
+                key={column}
+              />
             );
           })}
         </div>
